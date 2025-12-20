@@ -110,4 +110,28 @@
 - 文档应聚焦于：设计决策、业务逻辑、API 契约、非显而易见的约定
 - 保持文档简洁，避免重复代码库中已经显而易见的信息
 
+## 10. API 集成测试规范 (BDD-style)
 
+所有 `/api` 数据端点**必须**有对应的自动化集成测试。当新增功能或修改现有行为时，需同步更新测试。
+
+### 10.1. 技术要求
+- **框架**: Spring Test + JUnit 5 (不使用 BDD 框架如 Cucumber)
+- **运行方式**: 启动完整 Spring 容器，调用真实 HTTP 端点
+- **数据库**: SQLite 内存数据库 (`jdbc:sqlite:file::memory:?cache=shared`)
+- **配置文件**: `src/test/resources/application-test.yml`
+
+### 10.2. 测试结构
+```java
+@Test
+@DisplayName("Given [前置条件], when [操作], then [预期结果]")
+void methodName_shouldExpectedBehavior() {
+    // Given: 前置条件描述
+    // When: 执行操作
+    // Then: 验证结果
+}
+```
+
+### 10.3. 测试隔离
+- 每个测试用例**独立**，互不依赖
+- `@BeforeEach` 清空数据库
+- 每个测试自行 setup 所需数据

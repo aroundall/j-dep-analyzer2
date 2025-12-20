@@ -66,6 +66,9 @@ $env:GOOGLE_APPLICATION_CREDENTIALS = "C:\path\to\service-account.json"
 # Run tests
 .\mvnw test
 
+# Run API integration tests
+.\mvnw test -Dtest="com.jdepanalyzer.api.*"
+
 # Run with dev mode
 .\mvnw spring-boot:run
 ```

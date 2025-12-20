@@ -1,0 +1,41 @@
+# Test configuration using SQLite in-memory database
+# Each test class gets a fresh database instance
+
+spring:
+  application:
+    name: j-dep-analyzer2-test
+
+  datasource:
+    # Use in-memory SQLite database for test isolation
+    url: jdbc:sqlite:file::memory:?cache=shared
+    driver-class-name: org.sqlite.JDBC
+    hikari:
+      maximum-pool-size: 1
+
+  jpa:
+    hibernate:
+      # Create-drop ensures clean database for each test run
+      ddl-auto: create-drop
+    properties:
+      hibernate:
+        dialect: org.hibernate.community.dialect.SQLiteDialect
+    show-sql: false
+
+  # Thymeleaf settings
+  thymeleaf:
+    cache: false
+    prefix: classpath:/templates/
+    suffix: .html
+
+  # File upload limits
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 50MB
+
+  # Flyway disabled for tests
+  flyway:
+    enabled: false
+
+server:
+  port: 0  # Random port for tests
