@@ -8,6 +8,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.util.MultiValueMap;
 
 import java.io.IOException;
+import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -23,6 +25,7 @@ class UploadApiTest extends BaseApiTest {
     // ========================================================================
     @Test
     @DisplayName("Given an empty database, when I upload a valid POM file, then it should succeed and store artifacts")
+    @SuppressWarnings("unchecked")
     void uploadValidPomFile_shouldStoreArtifactsAndEdges() throws IOException {
         // Given: An empty database
         assertThat(artifactRepository.count()).isZero();
@@ -30,13 +33,13 @@ class UploadApiTest extends BaseApiTest {
 
         // When: I upload a valid POM file (spring-core with 1 dependency)
         HttpEntity<MultiValueMap<String, Object>> entity = createUploadEntity("spring-core-6.2.15.pom");
-        ResponseEntity<String> response = restTemplate.postForEntity(
-                apiUrl("/api/upload"), entity, String.class);
+        ResponseEntity<Map> response = restTemplate.postForEntity(
+                apiUrl("/api/upload"), entity, Map.class);
 
         // Then: The response should indicate success
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(response.getBody()).contains("Upload Complete");
-        assertThat(response.getBody()).contains("Parsed: 1 files");
+        assertThat(response.getBody()).containsEntry("success", true);
+        assertThat(response.getBody()).containsEntry("parsed", 1);
 
         // And: The database should contain the artifact and its dependencies
         assertThat(artifactRepository.count()).isEqualTo(2); // spring-core + spring-jcl
@@ -53,6 +56,7 @@ class UploadApiTest extends BaseApiTest {
     // ========================================================================
     @Test
     @DisplayName("Given an empty database, when I upload multiple POM files, then all should be processed")
+    @SuppressWarnings("unchecked")
     void uploadMultiplePomFiles_shouldProcessAll() throws IOException {
         // Given: An empty database
         assertThat(artifactRepository.count()).isZero();
@@ -61,12 +65,12 @@ class UploadApiTest extends BaseApiTest {
         HttpEntity<MultiValueMap<String, Object>> entity = createUploadEntity(
                 "spring-core-6.2.15.pom",
                 "spring-context-6.2.15.pom");
-        ResponseEntity<String> response = restTemplate.postForEntity(
-                apiUrl("/api/upload"), entity, String.class);
+        ResponseEntity<Map> response = restTemplate.postForEntity(
+                apiUrl("/api/upload"), entity, Map.class);
 
         // Then: The response should indicate success for both files
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(response.getBody()).contains("Parsed: 2 files");
+        assertThat(response.getBody()).containsEntry("parsed", 2);
 
         // And: All artifacts should be stored
         assertThat(artifactRepository.count()).isGreaterThanOrEqualTo(2);
@@ -77,6 +81,7 @@ class UploadApiTest extends BaseApiTest {
     // ========================================================================
     @Test
     @DisplayName("Given an artifact already exists, when I upload the same POM, then it should not create duplicates")
+    @SuppressWarnings("unchecked")
     void uploadSamePomTwice_shouldBeIdempotent() throws IOException {
         // Given: I've already uploaded a POM file
         uploadPomFiles("spring-core-6.2.15.pom");
@@ -85,8 +90,8 @@ class UploadApiTest extends BaseApiTest {
 
         // When: I upload the same POM file again
         HttpEntity<MultiValueMap<String, Object>> entity = createUploadEntity("spring-core-6.2.15.pom");
-        ResponseEntity<String> response = restTemplate.postForEntity(
-                apiUrl("/api/upload"), entity, String.class);
+        ResponseEntity<Map> response = restTemplate.postForEntity(
+                apiUrl("/api/upload"), entity, Map.class);
 
         // Then: The response should indicate success
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
@@ -118,14 +123,16 @@ class UploadApiTest extends BaseApiTest {
     // ========================================================================
     @Test
     @DisplayName("When I upload POMs, then the response should show correct counts")
+    @SuppressWarnings("unchecked")
     void uploadResponse_shouldShowCorrectCounts() throws IOException {
         // When: I upload a POM with 1 dependency
         HttpEntity<MultiValueMap<String, Object>> entity = createUploadEntity("spring-core-6.2.15.pom");
-        ResponseEntity<String> response = restTemplate.postForEntity(
-                apiUrl("/api/upload"), entity, String.class);
+        ResponseEntity<Map> response = restTemplate.postForEntity(
+                apiUrl("/api/upload"), entity, Map.class);
 
         // Then: Response should contain correct counts
-        assertThat(response.getBody()).contains("New artifacts: 2"); // 1 project + 1 dep
-        assertThat(response.getBody()).contains("New edges: 1"); // 1 dependency edge
+        assertThat(response.getBody()).containsEntry("newArtifacts", 2); // 1 project + 1 dep
+        assertThat(response.getBody()).containsEntry("newEdges", 1); // 1 dependency edge
     }
 }
+

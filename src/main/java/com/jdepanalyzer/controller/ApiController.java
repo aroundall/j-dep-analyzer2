@@ -38,36 +38,25 @@ public class ApiController {
      * Upload POM files.
      */
     @PostMapping("/upload")
-    public ResponseEntity<String> uploadPoms(@RequestParam("files") List<MultipartFile> files) {
+    public ResponseEntity<Map<String, Object>> uploadPoms(@RequestParam("files") List<MultipartFile> files) {
+        Map<String, Object> response = new LinkedHashMap<>();
+
         if (files == null || files.isEmpty()) {
-            return ResponseEntity.badRequest().body("<div class=\"text-red-500\">No files provided</div>");
+            response.put("success", false);
+            response.put("error", "No files provided");
+            return ResponseEntity.badRequest().body(response);
         }
 
         UploadService.UploadResult result = uploadService.processUpload(files);
 
-        StringBuilder html = new StringBuilder();
-        html.append("<div class=\"p-4 rounded-lg bg-green-50 border border-green-200\">");
-        html.append("<p class=\"text-green-700 font-medium\">Upload Complete</p>");
-        html.append("<ul class=\"text-sm text-green-600 mt-2\">");
-        html.append("<li>Parsed: ").append(result.parsed()).append(" files</li>");
-        html.append("<li>New artifacts: ").append(result.newArtifacts()).append("</li>");
-        html.append("<li>New edges: ").append(result.newEdges()).append("</li>");
-        if (result.skipped() > 0) {
-            html.append("<li class=\"text-yellow-600\">Skipped: ").append(result.skipped()).append("</li>");
-        }
-        html.append("</ul>");
+        response.put("success", true);
+        response.put("parsed", result.parsed());
+        response.put("newArtifacts", result.newArtifacts());
+        response.put("newEdges", result.newEdges());
+        response.put("skipped", result.skipped());
+        response.put("errors", result.errors());
 
-        if (!result.errors().isEmpty()) {
-            html.append("<div class=\"mt-2 text-red-500 text-sm\">");
-            html.append("<p class=\"font-medium\">Errors:</p>");
-            for (String error : result.errors()) {
-                html.append("<p>").append(escapeHtml(error)).append("</p>");
-            }
-            html.append("</div>");
-        }
-        html.append("</div>");
-
-        return ResponseEntity.ok(html.toString());
+        return ResponseEntity.ok(response);
     }
 
     /**
@@ -143,10 +132,10 @@ public class ApiController {
     }
 
     /**
-     * Get dependencies table as HTML for HTMX.
+     * Get dependencies table data as JSON.
      */
     @GetMapping("/dependencies/table")
-    public ResponseEntity<String> getDependenciesTable(
+    public ResponseEntity<List<Map<String, Object>>> getDependenciesTable(
             @RequestParam(name = "q", required = false) String query,
             @RequestParam(name = "group_q", required = false) String groupQuery,
             @RequestParam(name = "scope", required = false) List<String> scopes,
@@ -155,28 +144,7 @@ public class ApiController {
             @RequestParam(defaultValue = "500") int limit) {
 
         var edges = edgeRepository.findAll();
-
-        StringBuilder html = new StringBuilder();
-        html.append("<table class=\"min-w-full divide-y divide-gray-200\">");
-        html.append("<thead class=\"bg-gray-50\">");
-        html.append("<tr>");
-        html.append(
-                "<th colspan=\"3\" class=\"px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider border-r border-gray-200\">Source (depends on)</th>");
-        html.append(
-                "<th colspan=\"4\" class=\"px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider\">Target (dependency)</th>");
-        html.append("</tr>");
-        html.append("<tr>");
-        html.append("<th class=\"px-4 py-2 text-left text-xs font-medium text-gray-500\">Group</th>");
-        html.append("<th class=\"px-4 py-2 text-left text-xs font-medium text-gray-500\">Artifact</th>");
-        html.append(
-                "<th class=\"px-4 py-2 text-left text-xs font-medium text-gray-500 border-r border-gray-200\">Version</th>");
-        html.append("<th class=\"px-4 py-2 text-left text-xs font-medium text-gray-500\">Group</th>");
-        html.append("<th class=\"px-4 py-2 text-left text-xs font-medium text-gray-500\">Artifact</th>");
-        html.append("<th class=\"px-4 py-2 text-left text-xs font-medium text-gray-500\">Version</th>");
-        html.append("<th class=\"px-4 py-2 text-left text-xs font-medium text-gray-500\">Scope</th>");
-        html.append("</tr>");
-        html.append("</thead>");
-        html.append("<tbody class=\"bg-white divide-y divide-gray-200\">");
+        List<Map<String, Object>> result = new ArrayList<>();
 
         int count = 0;
         for (var edge : edges) {
@@ -216,35 +184,20 @@ public class ApiController {
                 }
             }
 
-            html.append("<tr class=\"hover:bg-gray-50 cursor-pointer\" ");
-            html.append("ondblclick=\"window.location.href='/visualize/").append(escapeHtml(edge.getFromGav()))
-                    .append("'\">");
-            html.append("<td class=\"px-4 py-2 text-sm text-gray-500 font-mono\">")
-                    .append(escapeHtml(ignoreGroup ? "" : fromGroup)).append("</td>");
-            html.append("<td class=\"px-4 py-2 text-sm text-gray-900\">").append(escapeHtml(fromArtifact))
-                    .append("</td>");
-            html.append("<td class=\"px-4 py-2 text-sm text-gray-500 border-r border-gray-200\">")
-                    .append(escapeHtml(ignoreVersion ? "" : fromVersion)).append("</td>");
-            html.append("<td class=\"px-4 py-2 text-sm text-gray-500 font-mono\">")
-                    .append(escapeHtml(ignoreGroup ? "" : toGroup)).append("</td>");
-            html.append("<td class=\"px-4 py-2 text-sm text-gray-900\">").append(escapeHtml(toArtifact))
-                    .append("</td>");
-            html.append("<td class=\"px-4 py-2 text-sm text-gray-500\">")
-                    .append(escapeHtml(ignoreVersion ? "" : toVersion)).append("</td>");
-            html.append("<td class=\"px-4 py-2 text-sm text-gray-500\">")
-                    .append(escapeHtml(edge.getScope() != null ? edge.getScope() : "compile")).append("</td>");
-            html.append("</tr>");
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("fromGav", edge.getFromGav());
+            row.put("fromGroup", ignoreGroup ? "" : fromGroup);
+            row.put("fromArtifact", fromArtifact);
+            row.put("fromVersion", ignoreVersion ? "" : fromVersion);
+            row.put("toGroup", ignoreGroup ? "" : toGroup);
+            row.put("toArtifact", toArtifact);
+            row.put("toVersion", ignoreVersion ? "" : toVersion);
+            row.put("scope", edge.getScope() != null ? edge.getScope() : "compile");
+            result.add(row);
             count++;
         }
 
-        if (count == 0) {
-            html.append(
-                    "<tr><td colspan=\"7\" class=\"px-4 py-8 text-center text-gray-400\">No dependencies found.</td></tr>");
-        }
-
-        html.append("</tbody></table>");
-
-        return ResponseEntity.ok(html.toString());
+        return ResponseEntity.ok(result);
     }
 
     /**
@@ -329,15 +282,6 @@ public class ApiController {
         }
 
         writer.flush();
-    }
-
-    private String escapeHtml(String text) {
-        if (text == null)
-            return "";
-        return text.replace("&", "&amp;")
-                .replace("<", "&lt;")
-                .replace(">", "&gt;")
-                .replace("\"", "&quot;");
     }
 
     private String escapeCsv(String value) {

@@ -19,8 +19,7 @@
 
             <!-- Filters Card -->
             <div class="bg-surface rounded-xl shadow-mate-1 border border-gray-100 p-6">
-                <form id="filter-form" hx-get="/api/dependencies/table" hx-target="#deps-table"
-                    hx-trigger="input delay:300ms, change" class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <form id="filter-form" class="grid grid-cols-1 md:grid-cols-4 gap-4">
 
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Filter by Artifact ID</label>
@@ -109,9 +108,82 @@
         </div>
 
         <script>
+            let debounceTimer;
+
             document.addEventListener('DOMContentLoaded', function () {
-                htmx.trigger('#filter-form', 'change');
+                const form = document.getElementById('filter-form');
+
+                // Initial load
+                refreshTable();
+
+                // Add event listeners for input and change with debounce
+                form.addEventListener('input', function () {
+                    clearTimeout(debounceTimer);
+                    debounceTimer = setTimeout(refreshTable, 300);
+                });
+                form.addEventListener('change', refreshTable);
             });
+
+            function refreshTable() {
+                const form = document.getElementById('filter-form');
+                const formData = new FormData(form);
+                const params = new URLSearchParams(formData);
+
+                fetch('/api/dependencies/table?' + params.toString())
+                    .then(res => res.json())
+                    .then(data => {
+                        document.getElementById('deps-table').innerHTML = renderTable(data);
+                    })
+                    .catch(err => {
+                        console.error('Failed to load dependencies:', err);
+                    });
+            }
+
+            function renderTable(data) {
+                let html = '<table class="min-w-full divide-y divide-gray-200">';
+                html += '<thead class="bg-gray-50">';
+                html += '<tr>';
+                html += '<th colspan="3" class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider border-r border-gray-200">Source (depends on)</th>';
+                html += '<th colspan="4" class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Target (dependency)</th>';
+                html += '</tr>';
+                html += '<tr>';
+                html += '<th class="px-4 py-2 text-left text-xs font-medium text-gray-500">Group</th>';
+                html += '<th class="px-4 py-2 text-left text-xs font-medium text-gray-500">Artifact</th>';
+                html += '<th class="px-4 py-2 text-left text-xs font-medium text-gray-500 border-r border-gray-200">Version</th>';
+                html += '<th class="px-4 py-2 text-left text-xs font-medium text-gray-500">Group</th>';
+                html += '<th class="px-4 py-2 text-left text-xs font-medium text-gray-500">Artifact</th>';
+                html += '<th class="px-4 py-2 text-left text-xs font-medium text-gray-500">Version</th>';
+                html += '<th class="px-4 py-2 text-left text-xs font-medium text-gray-500">Scope</th>';
+                html += '</tr>';
+                html += '</thead>';
+                html += '<tbody class="bg-white divide-y divide-gray-200">';
+
+                if (data.length === 0) {
+                    html += '<tr><td colspan="7" class="px-4 py-8 text-center text-gray-400">No dependencies found.</td></tr>';
+                } else {
+                    data.forEach(function (row) {
+                        html += '<tr class="hover:bg-gray-50 cursor-pointer" ondblclick="window.location.href=\'/page/visualize/' + encodeURIComponent(row.fromGav) + '\'">';
+                        html += '<td class="px-4 py-2 text-sm text-gray-500 font-mono">' + escapeHtml(row.fromGroup) + '</td>';
+                        html += '<td class="px-4 py-2 text-sm text-gray-900">' + escapeHtml(row.fromArtifact) + '</td>';
+                        html += '<td class="px-4 py-2 text-sm text-gray-500 border-r border-gray-200">' + escapeHtml(row.fromVersion) + '</td>';
+                        html += '<td class="px-4 py-2 text-sm text-gray-500 font-mono">' + escapeHtml(row.toGroup) + '</td>';
+                        html += '<td class="px-4 py-2 text-sm text-gray-900">' + escapeHtml(row.toArtifact) + '</td>';
+                        html += '<td class="px-4 py-2 text-sm text-gray-500">' + escapeHtml(row.toVersion) + '</td>';
+                        html += '<td class="px-4 py-2 text-sm text-gray-500">' + escapeHtml(row.scope) + '</td>';
+                        html += '</tr>';
+                    });
+                }
+
+                html += '</tbody></table>';
+                return html;
+            }
+
+            function escapeHtml(text) {
+                if (!text) return '';
+                const div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
+            }
 
             function exportCsv() {
                 const form = document.getElementById('filter-form');
