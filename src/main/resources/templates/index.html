@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+    layout:decorate="~{base}">
+
+<head>
+    <title th:text="${title}">Dashboard - J-Dep Analyzer</title>
+</head>
+
+<body>
+    <div layout:fragment="content">
+        <div class="space-y-8">
+
+            <!-- Welcome / Upload Section -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+
+                <!-- Intro Card -->
+                <div
+                    class="md:col-span-1 bg-indigo-600 rounded-2xl shadow-mate-3 p-8 text-white relative overflow-hidden flex flex-col justify-center">
+                    <div
+                        class="absolute top-0 right-0 -mt-10 -mr-10 w-64 h-64 bg-white opacity-10 rounded-full blur-3xl">
+                    </div>
+                    <div
+                        class="absolute bottom-0 left-0 -mb-10 -ml-10 w-40 h-40 bg-indigo-400 opacity-20 rounded-full blur-2xl">
+                    </div>
+
+                    <div class="relative z-10">
+                        <h2 class="text-3xl font-bold mb-2">Welcome</h2>
+                        <p class="text-indigo-100 mb-6">
+                            Upload your <code>pom.xml</code> files to analyze dependency trees and identify conflicts
+                            across your
+                            microservices.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Upload Widget -->
+                <div
+                    class="md:col-span-2 bg-surface rounded-xl shadow-mate-1 border border-gray-100 p-8 flex flex-col justify-center">
+                    <form id="upload-form" hx-encoding="multipart/form-data" hx-post="/api/upload"
+                        hx-target="#upload-status" class="flex flex-col items-center gap-4">
+
+                        <div
+                            class="w-full text-center border-2 border-dashed border-gray-300 rounded-xl p-8 hover:bg-gray-50 transition-colors cursor-pointer relative group">
+                            <input type="file" name="files" multiple
+                                class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                                onchange="document.getElementById('file-count').innerText = this.files.length + ' files selected'">
+
+                            <div
+                                class="flex flex-col items-center gap-2 text-gray-500 group-hover:text-primary-600 transition-colors">
+                                <span class="material-symbols-outlined text-4xl">cloud_upload</span>
+                                <p class="text-lg font-medium">Drag & drop POMs here</p>
+                                <p class="text-sm">or click to browse</p>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center justify-between w-full">
+                            <span id="file-count" class="text-sm text-gray-500 font-medium">No files selected</span>
+
+                            <button type="submit"
+                                class="ripple bg-primary-600 hover:bg-primary-700 text-white font-medium py-2 px-6 rounded-lg shadow-sm shadow-primary-500/30 flex items-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                                <span class="material-symbols-outlined text-sm">upload</span>
+                                Upload & Analyze
+                                <span
+                                    class="htmx-indicator material-symbols-outlined animate-spin text-sm">progress_activity</span>
+                            </button>
+                        </div>
+                    </form>
+
+                    <div id="upload-status" class="mt-4"></div>
+                </div>
+            </div>
+
+            <!-- Global Graph Card -->
+            <div
+                class="bg-surface rounded-xl shadow-mate-1 border border-gray-100 flex flex-col overflow-hidden h-[800px]">
+                <div class="px-6 py-4 border-b border-gray-100 bg-gray-50 flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                        <span class="material-symbols-outlined text-primary-600">hub</span>
+                        <h3 class="font-semibold text-gray-900">Global Dependency Graph</h3>
+                    </div>
+
+                    <!-- Graph Controls -->
+                    <div class="flex items-center gap-4 text-sm">
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" id="toggle-group"
+                                class="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                                th:checked="${!showGroup}" onchange="refreshGraph()">
+                            <span class="text-gray-600">Combine Groups</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" id="toggle-version"
+                                class="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                                th:checked="${!showVersion}" onchange="refreshGraph()">
+                            <span class="text-gray-600">Combine Versions</span>
+                        </label>
+
+                        <div class="h-4 w-px bg-gray-300 mx-2"></div>
+
+                        <select id="layout-select" onchange="updateLayout()"
+                            class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block p-1.5">
+                            <option value="dagre">Hierarchy (Dagre)</option>
+                            <option value="cose">Force (Cose)</option>
+                            <option value="grid">Grid</option>
+                            <option value="circle">Circle</option>
+                            <option value="concentric" selected>Concentric</option>
+                            <option value="breadthfirst">Breadthfirst</option>
+                        </select>
+
+                        <button onclick="cy.fit()" class="text-gray-500 hover:text-primary-600" title="Fit to Screen">
+                            <span class="material-symbols-outlined">fit_screen</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div id="cy" class="flex-grow w-full h-full bg-white relative"></div>
+            </div>
+
+        </div>
+
+        <script th:inline="javascript">
+            var cy;
+
+            document.addEventListener('DOMContentLoaded', function () {
+                refreshGraph();
+
+                // Refresh graph after successful upload
+                document.body.addEventListener('htmx:afterOnLoad', function (evt) {
+                    if (evt.detail.elt.id === 'upload-form') {
+                        setTimeout(refreshGraph, 500);
+                    }
+                });
+            });
+
+            function refreshGraph() {
+                const showGroup = !document.getElementById('toggle-group').checked;
+                const showVersion = !document.getElementById('toggle-version').checked;
+
+                fetch(`/api/graph/data?show_group=${showGroup}&show_version=${showVersion}&direction=forward`)
+                    .then(res => res.json())
+                    .then(data => {
+                        const el = document.getElementById('cy');
+                        if (!data.elements || data.elements.length === 0) {
+                            el.innerHTML = '<div class="flex h-full items-center justify-center text-gray-400">No dependency data found. Upload a POM file to start.</div>';
+                            if (cy) cy.destroy();
+                            cy = null;
+                        } else {
+                            el.innerHTML = '';
+                            initCy(data.elements);
+                        }
+                    })
+                    .catch(err => {
+                        console.error("Failed to load graph:", err);
+                    });
+            }
+
+            function initCy(elements) {
+                if (cy) cy.destroy();
+
+                cy = cytoscape({
+                    container: document.getElementById('cy'),
+                    elements: elements,
+                    minZoom: 0.1,
+                    maxZoom: 3,
+                    wheelSensitivity: 0.3,
+                    style: [
+                        {
+                            selector: 'node',
+                            style: {
+                                'background-color': '#6366f1',
+                                'label': 'data(label)',
+                                'color': '#1e293b',
+                                'font-size': '12px',
+                                'font-family': 'Inter, sans-serif',
+                                'text-valign': 'center',
+                                'text-halign': 'center',
+                                'width': 'label',
+                                'height': 'label',
+                                'padding': '12px',
+                                'shape': 'round-rectangle',
+                                'text-wrap': 'wrap',
+                                'text-max-width': '120px',
+                                'border-width': 1,
+                                'border-color': '#e0e7ff',
+                                'background-opacity': 0.1
+                            }
+                        },
+                        {
+                            selector: 'edge',
+                            style: {
+                                'width': 1,
+                                'line-color': '#cbd5e1',
+                                'target-arrow-color': '#cbd5e1',
+                                'target-arrow-shape': 'triangle',
+                                'curve-style': 'bezier'
+                            }
+                        },
+                        {
+                            selector: ':selected',
+                            style: {
+                                'background-color': '#4f46e5',
+                                'line-color': '#4f46e5',
+                                'target-arrow-color': '#4f46e5',
+                                'source-arrow-color': '#4f46e5',
+                                'color': '#4f46e5',
+                                'font-weight': 'bold',
+                                'border-color': '#4f46e5',
+                                'border-width': 2
+                            }
+                        }
+                    ],
+                    layout: {
+                        name: document.getElementById('layout-select').value,
+                        rankDir: 'LR',
+                        padding: 50,
+                        animate: true,
+                        stop: function () {
+                            cy.fit(undefined, 50);
+                        }
+                    }
+                });
+
+                cy.on('tap', 'node', function (evt) {
+                    var node = evt.target;
+                    const id = node.id();
+                    if (id) {
+                        window.location.href = `/visualize/${encodeURIComponent(id)}`;
+                    }
+                });
+            }
+
+            function updateLayout() {
+                if (!cy) return;
+                const layoutName = document.getElementById('layout-select').value;
+                const layoutConfig = {
+                    name: layoutName,
+                    animate: true,
+                    animationDuration: 500,
+                    padding: 50
+                };
+
+                if (layoutName === 'dagre') {
+                    layoutConfig.rankDir = 'LR';
+                }
+
+                cy.layout(layoutConfig).run();
+            }
+        </script>
+    </div>
+</body>
+
+</html>

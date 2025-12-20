@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title th:text="${title} ?: 'J-Dep Analyzer'">J-Dep Analyzer</title>
+
+    <!-- Google Fonts: Inter (UI) & Fira Code (Code) & Roboto (Material) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Fira+Code:wght@400;500&family=Roboto:wght@300;400;500;700&display=swap"
+        rel="stylesheet" />
+    <!-- Material Symbols -->
+    <link rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+
+    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <script src="https://unpkg.com/cytoscape@3.28.1/dist/cytoscape.min.js"></script>
+    <script src="https://unpkg.com/dagre@0.8.5/dist/dagre.min.js"></script>
+    <script src="https://unpkg.com/cytoscape-dagre@2.5.0/cytoscape-dagre.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'Roboto', 'sans-serif'],
+                        mono: ['Fira Code', 'monospace'],
+                    },
+                    colors: {
+                        primary: {
+                            50: '#eef2ff',
+                            100: '#e0e7ff',
+                            500: '#6366f1',
+                            600: '#4f46e5',
+                            700: '#4338ca',
+                        },
+                        surface: '#ffffff',
+                        background: '#f8fafc',
+                        text: {
+                            primary: '#1e293b',
+                            secondary: '#64748b',
+                        }
+                    },
+                    boxShadow: {
+                        'mate-1': '0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1)',
+                        'mate-2': '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)',
+                        'mate-3': '0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)',
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            vertical-align: middle;
+        }
+
+        .htmx-indicator {
+            display: none;
+        }
+
+        .htmx-request .htmx-indicator {
+            display: inline-flex;
+        }
+
+        .htmx-request.htmx-indicator {
+            display: inline-flex;
+        }
+
+        /* Ripple effect utility */
+        .ripple {
+            position: relative;
+            overflow: hidden;
+            transform: translate3d(0, 0, 0);
+        }
+
+        .ripple:after {
+            content: "";
+            display: block;
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+            background-image: radial-gradient(circle, #fff 10%, transparent 10.01%);
+            background-repeat: no-repeat;
+            background-position: 50%;
+            transform: scale(10, 10);
+            opacity: 0;
+            transition: transform .5s, opacity 1s;
+        }
+
+        .ripple:active:after {
+            transform: scale(0, 0);
+            opacity: .3;
+            transition: 0s;
+        }
+    </style>
+</head>
+
+<body class="bg-background text-text-primary min-h-screen flex flex-col font-sans">
+
+    <!-- Top App Bar -->
+    <header class="bg-surface sticky top-0 z-50 shadow-mate-1 border-b border-gray-100">
+        <div class="px-6 h-16 flex items-center justify-between max-w-7xl mx-auto w-full">
+            <div class="flex items-center gap-4">
+                <a href="/" class="flex items-center gap-2 text-primary-600 hover:text-primary-700 transition-colors">
+                    <span class="material-symbols-outlined text-3xl">hub</span>
+                    <h1 class="text-xl font-bold tracking-tight text-gray-900">J-Dep Analyzer</h1>
+                </a>
+            </div>
+
+            <nav class="hidden md:flex gap-2 items-center">
+                <a href="/"
+                    th:classappend="${activePage == 'dashboard'} ? 'text-primary-600 bg-primary-50' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'"
+                    class="px-4 py-2 rounded-full text-sm font-medium transition-colors">
+                    Dashboard
+                </a>
+                <a href="/dependencies/list"
+                    th:classappend="${activePage == 'dependencies'} ? 'text-primary-600 bg-primary-50' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'"
+                    class="px-4 py-2 rounded-full text-sm font-medium transition-colors">
+                    Dependencies
+                </a>
+                <a href="/export"
+                    th:classappend="${activePage == 'export'} ? 'text-primary-600 bg-primary-50' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'"
+                    class="px-4 py-2 rounded-full text-sm font-medium transition-colors">
+                    Export
+                </a>
+            </nav>
+
+        </div>
+    </header>
+
+    <main th:class="'flex-grow w-full mx-auto px-6 py-8 ' + (${wide} ? 'max-w-[90vw]' : 'max-w-7xl')">
+        <div layout:fragment="content">
+            <!-- Page content goes here -->
+        </div>
+    </main>
+
+</body>
+
+</html>

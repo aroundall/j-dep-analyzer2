@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+    layout:decorate="~{base}">
+
+<head>
+    <title th:text="${title}">Export - J-Dep Analyzer</title>
+</head>
+
+<body>
+    <div layout:fragment="content">
+        <div class="max-w-2xl mx-auto space-y-6">
+            <!-- Header -->
+            <div>
+                <h2 class="text-2xl font-bold text-gray-900">Export Data</h2>
+                <p class="text-gray-500 text-sm mt-1">Download raw data as CSV files</p>
+            </div>
+
+            <!-- Table List -->
+            <div class="bg-surface rounded-xl shadow-mate-1 border border-gray-100 divide-y divide-gray-100">
+                <div th:each="table : ${tables}"
+                    class="p-4 flex items-center justify-between hover:bg-gray-50 transition-colors">
+                    <div class="flex items-center gap-3">
+                        <span class="material-symbols-outlined text-primary-600">table_chart</span>
+                        <div>
+                            <p class="font-medium text-gray-900 font-mono" th:text="${table.name}">artifact</p>
+                            <p class="text-sm text-gray-500">
+                                <span th:text="${table.rowCount}">0</span> rows
+                            </p>
+                        </div>
+                    </div>
+                    <a th:href="@{'/export/' + ${table.name} + '.csv'}"
+                        class="inline-flex items-center gap-1 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium rounded-lg transition-colors">
+                        <span class="material-symbols-outlined text-sm">download</span>
+                        Download CSV
+                    </a>
+                </div>
+            </div>
+
+            <!-- Info -->
+            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-800">
+                <div class="flex items-start gap-2">
+                    <span class="material-symbols-outlined text-blue-600 mt-0.5">info</span>
+                    <div>
+                        <p class="font-medium">Export Format</p>
+                        <p class="text-blue-700 mt-1">
+                            Files are exported as UTF-8 encoded CSV with headers. Large tables may take a moment to
+                            generate.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>
