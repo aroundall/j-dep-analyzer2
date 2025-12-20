@@ -124,20 +124,127 @@ public class ApiController {
             graph = atomic;
         }
 
-        // Filter by depth
-        if (rootId != null && depth != null) {
-            Set<String> visibleNodes = graphService.nodesWithinDepth(graph, rootId, direction, depth);
-            // Create subgraph (simplified - just filter elements in output)
+        // Filter by depth and direction
+        Set<String> visibleNodes = null;
+        if (rootId != null && graph.containsVertex(rootId)) {
+            // Get nodes within depth (or all reachable nodes if depth is null)
+            visibleNodes = graphService.nodesWithinDepth(graph, rootId, direction, depth);
         }
 
-        List<Map<String, Object>> elements = graphService.toCytoscapeElements(graph, rootId, direction, showVersion);
+        List<Map<String, Object>> elements = graphService.toCytoscapeElements(
+                graph, rootId, direction, showVersion, visibleNodes);
 
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("elements", elements);
-        response.put("node_count", graph.vertexSet().size());
+        response.put("node_count", visibleNodes != null ? visibleNodes.size() : graph.vertexSet().size());
         response.put("edge_count", graph.edgeSet().size());
 
         return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Get dependencies table as HTML for HTMX.
+     */
+    @GetMapping("/dependencies/table")
+    public ResponseEntity<String> getDependenciesTable(
+            @RequestParam(name = "q", required = false) String query,
+            @RequestParam(name = "group_q", required = false) String groupQuery,
+            @RequestParam(name = "scope", required = false) List<String> scopes,
+            @RequestParam(name = "ignore_version", defaultValue = "false") boolean ignoreVersion,
+            @RequestParam(name = "ignore_group", defaultValue = "false") boolean ignoreGroup,
+            @RequestParam(defaultValue = "500") int limit) {
+
+        var edges = edgeRepository.findAll();
+
+        StringBuilder html = new StringBuilder();
+        html.append("<table class=\"min-w-full divide-y divide-gray-200\">");
+        html.append("<thead class=\"bg-gray-50\">");
+        html.append("<tr>");
+        html.append(
+                "<th colspan=\"3\" class=\"px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider border-r border-gray-200\">Source (depends on)</th>");
+        html.append(
+                "<th colspan=\"4\" class=\"px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider\">Target (dependency)</th>");
+        html.append("</tr>");
+        html.append("<tr>");
+        html.append("<th class=\"px-4 py-2 text-left text-xs font-medium text-gray-500\">Group</th>");
+        html.append("<th class=\"px-4 py-2 text-left text-xs font-medium text-gray-500\">Artifact</th>");
+        html.append(
+                "<th class=\"px-4 py-2 text-left text-xs font-medium text-gray-500 border-r border-gray-200\">Version</th>");
+        html.append("<th class=\"px-4 py-2 text-left text-xs font-medium text-gray-500\">Group</th>");
+        html.append("<th class=\"px-4 py-2 text-left text-xs font-medium text-gray-500\">Artifact</th>");
+        html.append("<th class=\"px-4 py-2 text-left text-xs font-medium text-gray-500\">Version</th>");
+        html.append("<th class=\"px-4 py-2 text-left text-xs font-medium text-gray-500\">Scope</th>");
+        html.append("</tr>");
+        html.append("</thead>");
+        html.append("<tbody class=\"bg-white divide-y divide-gray-200\">");
+
+        int count = 0;
+        for (var edge : edges) {
+            if (count >= limit)
+                break;
+
+            // Parse from and to GAVs
+            String[] fromParts = edge.getFromGav().split(":", 3);
+            String[] toParts = edge.getToGav().split(":", 3);
+
+            String fromGroup = fromParts.length > 0 ? fromParts[0] : "";
+            String fromArtifact = fromParts.length > 1 ? fromParts[1] : "";
+            String fromVersion = fromParts.length > 2 ? fromParts[2] : "";
+
+            String toGroup = toParts.length > 0 ? toParts[0] : "";
+            String toArtifact = toParts.length > 1 ? toParts[1] : "";
+            String toVersion = toParts.length > 2 ? toParts[2] : "";
+
+            // Apply filters
+            if (query != null && !query.isEmpty()) {
+                String lowerQuery = query.toLowerCase();
+                if (!fromArtifact.toLowerCase().contains(lowerQuery) &&
+                        !toArtifact.toLowerCase().contains(lowerQuery)) {
+                    continue;
+                }
+            }
+            if (groupQuery != null && !groupQuery.isEmpty()) {
+                String lowerGroupQuery = groupQuery.toLowerCase();
+                if (!fromGroup.toLowerCase().contains(lowerGroupQuery) &&
+                        !toGroup.toLowerCase().contains(lowerGroupQuery)) {
+                    continue;
+                }
+            }
+            if (scopes != null && !scopes.isEmpty() && edge.getScope() != null) {
+                if (!scopes.contains(edge.getScope())) {
+                    continue;
+                }
+            }
+
+            html.append("<tr class=\"hover:bg-gray-50 cursor-pointer\" ");
+            html.append("ondblclick=\"window.location.href='/visualize/").append(escapeHtml(edge.getFromGav()))
+                    .append("'\">");
+            html.append("<td class=\"px-4 py-2 text-sm text-gray-500 font-mono\">")
+                    .append(escapeHtml(ignoreGroup ? "" : fromGroup)).append("</td>");
+            html.append("<td class=\"px-4 py-2 text-sm text-gray-900\">").append(escapeHtml(fromArtifact))
+                    .append("</td>");
+            html.append("<td class=\"px-4 py-2 text-sm text-gray-500 border-r border-gray-200\">")
+                    .append(escapeHtml(ignoreVersion ? "" : fromVersion)).append("</td>");
+            html.append("<td class=\"px-4 py-2 text-sm text-gray-500 font-mono\">")
+                    .append(escapeHtml(ignoreGroup ? "" : toGroup)).append("</td>");
+            html.append("<td class=\"px-4 py-2 text-sm text-gray-900\">").append(escapeHtml(toArtifact))
+                    .append("</td>");
+            html.append("<td class=\"px-4 py-2 text-sm text-gray-500\">")
+                    .append(escapeHtml(ignoreVersion ? "" : toVersion)).append("</td>");
+            html.append("<td class=\"px-4 py-2 text-sm text-gray-500\">")
+                    .append(escapeHtml(edge.getScope() != null ? edge.getScope() : "compile")).append("</td>");
+            html.append("</tr>");
+            count++;
+        }
+
+        if (count == 0) {
+            html.append(
+                    "<tr><td colspan=\"7\" class=\"px-4 py-8 text-center text-gray-400\">No dependencies found.</td></tr>");
+        }
+
+        html.append("</tbody></table>");
+
+        return ResponseEntity.ok(html.toString());
     }
 
     private String escapeHtml(String text) {

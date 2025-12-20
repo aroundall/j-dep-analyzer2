@@ -169,9 +169,13 @@ public class GraphService {
 
     /**
      * Convert graph to Cytoscape.js elements format.
+     * 
+     * @param visibleNodes if not null, only include these nodes and edges between
+     *                     them
      */
     public List<Map<String, Object>> toCytoscapeElements(
-            Graph<String, ?> graph, String rootId, String direction, boolean showVersion) {
+            Graph<String, ?> graph, String rootId, String direction, boolean showVersion,
+            Set<String> visibleNodes) {
 
         List<Map<String, Object>> elements = new ArrayList<>();
 
@@ -180,8 +184,13 @@ public class GraphService {
             collectAncestors(graph, rootId, highlight);
         }
 
-        // Nodes
+        // Nodes - filter by visibleNodes if provided
         for (String nodeId : graph.vertexSet()) {
+            // Skip nodes not in visible set
+            if (visibleNodes != null && !visibleNodes.contains(nodeId)) {
+                continue;
+            }
+
             // For aggregated graphs, nodeId might not be in GAV format
             // Try to parse, but fall back to using nodeId as label if parsing fails
             GAV gav = GAV.parse(nodeId);
@@ -227,13 +236,19 @@ public class GraphService {
             elements.add(node);
         }
 
-        // Edges
+        // Edges - filter by visibleNodes if provided
         for (Object edge : graph.edgeSet()) {
             // Need to use raw type graph access due to wildcard generic
             @SuppressWarnings("unchecked")
             Graph<String, Object> rawGraph = (Graph<String, Object>) graph;
             String source = rawGraph.getEdgeSource(edge);
             String target = rawGraph.getEdgeTarget(edge);
+
+            // Skip edges where source or target is not in visible set
+            if (visibleNodes != null &&
+                    (!visibleNodes.contains(source) || !visibleNodes.contains(target))) {
+                continue;
+            }
 
             String scope = "compile";
             boolean optional = false;
