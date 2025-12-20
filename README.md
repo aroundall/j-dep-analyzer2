@@ -43,20 +43,6 @@ $env:GOOGLE_APPLICATION_CREDENTIALS = "C:\path\to\service-account.json"
 | `JDEP_DB_USER` | Database user | - |
 | `GOOGLE_APPLICATION_CREDENTIALS` | Path to GCP service account JSON | - |
 
-## API Endpoints
-
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/` | GET | Dashboard with upload + graph |
-| `/page/dependencies/list` | GET | Dependencies pair list |
-| `/page/visualize/{id}` | GET | Detail view for artifact |
-| `/page/export` | GET | Export page |
-| `/api/upload` | POST | Upload POM files |
-| `/api/artifacts` | GET | List artifacts (JSON) |
-| `/api/graph/data` | GET | Graph data (Cytoscape.js format) |
-| `/api/dependencies/export` | GET | Export filtered dependencies CSV |
-| `/api/export/{table}.csv` | GET | Download raw table as CSV |
-
 ## Development
 
 ```powershell
@@ -72,17 +58,3 @@ $env:GOOGLE_APPLICATION_CREDENTIALS = "C:\path\to\service-account.json"
 # Run with dev mode
 .\mvnw spring-boot:run
 ```
-
-## Migration from Python Version
-
-This is a complete rewrite of [j-dep-analyzer](../README.md) using:
-
-| Python | Java |
-|--------|------|
-| FastAPI | Spring Boot 3.2 |
-| SQLModel | Spring Data JPA |
-| Jinja2 | Thymeleaf |
-| NetworkX | JGraphT |
-| pg8000 + cloud-sql-python-connector | JDBC + postgres-socket-factory |
-| Alembic | Flyway |
-| lxml | Java DOM/XPath |
