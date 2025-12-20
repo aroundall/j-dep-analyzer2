@@ -8,7 +8,6 @@ import com.jdepanalyzer.repository.DependencyEdgeRepository;
 import org.jgrapht.Graph;
 import org.jgrapht.graph.DefaultDirectedGraph;
 import org.jgrapht.graph.DefaultEdge;
-import org.jgrapht.traverse.BreadthFirstIterator;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
@@ -74,7 +73,7 @@ public class GraphService {
                 out.addVertex(newId);
                 mergedCount.put(newId, 0);
             }
-            mergedCount.merge(newId, 1, Integer::sum);
+            mergedCount.merge(newId, 1, (a, b) -> a + b);
         }
 
         // Add edges with aggregated endpoints

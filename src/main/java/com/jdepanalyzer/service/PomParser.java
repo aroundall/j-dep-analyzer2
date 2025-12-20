@@ -2,8 +2,6 @@ package com.jdepanalyzer.service;
 
 import com.jdepanalyzer.dto.GAV;
 import com.jdepanalyzer.dto.MavenProject;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
@@ -28,7 +26,6 @@ import java.util.regex.Pattern;
 @Service
 public class PomParser {
 
-    private static final Logger log = LoggerFactory.getLogger(PomParser.class);
     private static final Pattern PLACEHOLDER_RE = Pattern.compile("\\$\\{([^}]+)}");
 
     /**

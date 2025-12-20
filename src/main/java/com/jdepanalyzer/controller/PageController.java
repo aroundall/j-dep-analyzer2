@@ -1,8 +1,6 @@
 package com.jdepanalyzer.controller;
 
 import com.jdepanalyzer.dto.GAV;
-import com.jdepanalyzer.model.Artifact;
-import com.jdepanalyzer.model.DependencyEdge;
 import com.jdepanalyzer.repository.ArtifactRepository;
 import com.jdepanalyzer.repository.DependencyEdgeRepository;
 import org.springframework.stereotype.Controller;
