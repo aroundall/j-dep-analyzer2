@@ -72,7 +72,9 @@ public class DependencyEdge {
   - 顶部 Filters (ArtifactId, GroupId, Scope)
   - Checkbox: "Combine Versions", "Combine Groups"
   - 双击行跳转到 Visualize 页面
-  - Export CSV 按钮
+  - Export CSV 按钮 → 调用 `/api/dependencies/export`
+- **Export CSV 格式**: `source_group,source_artifact,source_version,target_group,target_artifact,target_version,scope`
+  - 支持所有筛选参数 (q, group_q, scope, ignore_version, ignore_group)
 
 ### 3.4 视图 C: 详细依赖透视 (`GET /visualize/{gav}`)
 
@@ -96,9 +98,10 @@ public class DependencyEdge {
 | GET | `/api/artifacts` | 获取 Artifact 列表 (JSON) |
 | GET | `/api/graph/data` | 获取图数据 (Cytoscape format) |
 | GET | `/api/dependencies/table` | 获取依赖表格 (HTML) |
+| GET | `/api/dependencies/export` | 导出筛选后的依赖 CSV |
+| GET | `/api/export/{table}.csv` | 导出原始表为 CSV |
 | GET | `/` | Dashboard 页面 |
-| GET | `/dependencies/list` | 依赖列表页面 |
-| GET | `/visualize/{gav}` | 可视化详情页 |
-| GET | `/export` | 导出页面 |
-| GET | `/export/{table}.csv` | 导出表为 CSV |
+| GET | `/page/dependencies/list` | 依赖列表页面 |
+| GET | `/page/visualize/{gav}` | 可视化详情页 |
+| GET | `/page/export` | 导出页面 |
 

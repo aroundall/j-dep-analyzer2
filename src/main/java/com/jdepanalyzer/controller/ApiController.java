@@ -247,6 +247,90 @@ public class ApiController {
         return ResponseEntity.ok(html.toString());
     }
 
+    /**
+     * Export dependencies as CSV (matches Python version format).
+     */
+    @GetMapping("/dependencies/export")
+    public void exportDependenciesCsv(
+            @RequestParam(name = "q", required = false) String query,
+            @RequestParam(name = "group_q", required = false) String groupQuery,
+            @RequestParam(name = "scope", required = false) List<String> scopes,
+            @RequestParam(name = "ignore_version", defaultValue = "false") boolean ignoreVersion,
+            @RequestParam(name = "ignore_group", defaultValue = "false") boolean ignoreGroup,
+            @RequestParam(name = "limit", required = false) Integer limit,
+            jakarta.servlet.http.HttpServletResponse response) throws java.io.IOException {
+
+        response.setContentType("text/csv; charset=utf-8");
+        response.setHeader("Content-Disposition", "attachment; filename=\"dependencies.csv\"");
+
+        var writer = response.getWriter();
+
+        // CSV header matching Python version
+        writer.println("source_group,source_artifact,source_version,target_group,target_artifact,target_version,scope");
+
+        var edges = edgeRepository.findAll();
+        int count = 0;
+        int maxCount = limit != null ? limit : Integer.MAX_VALUE;
+
+        for (var edge : edges) {
+            if (count >= maxCount)
+                break;
+
+            // Parse from and to GAVs
+            String[] fromParts = edge.getFromGav().split(":", 3);
+            String[] toParts = edge.getToGav().split(":", 3);
+
+            String fromGroup = fromParts.length > 0 ? fromParts[0] : "";
+            String fromArtifact = fromParts.length > 1 ? fromParts[1] : "";
+            String fromVersion = fromParts.length > 2 ? fromParts[2] : "";
+
+            String toGroup = toParts.length > 0 ? toParts[0] : "";
+            String toArtifact = toParts.length > 1 ? toParts[1] : "";
+            String toVersion = toParts.length > 2 ? toParts[2] : "";
+
+            String scopeVal = edge.getScope() != null ? edge.getScope() : "compile";
+
+            // Apply filters
+            if (query != null && !query.isEmpty()) {
+                String lowerQuery = query.toLowerCase();
+                if (!fromArtifact.toLowerCase().contains(lowerQuery) &&
+                        !toArtifact.toLowerCase().contains(lowerQuery)) {
+                    continue;
+                }
+            }
+            if (groupQuery != null && !groupQuery.isEmpty()) {
+                String lowerGroupQuery = groupQuery.toLowerCase();
+                if (!fromGroup.toLowerCase().contains(lowerGroupQuery) &&
+                        !toGroup.toLowerCase().contains(lowerGroupQuery)) {
+                    continue;
+                }
+            }
+            if (scopes != null && !scopes.isEmpty()) {
+                if (!scopes.contains(scopeVal)) {
+                    continue;
+                }
+            }
+
+            // Apply ignore flags for display
+            String displayFromGroup = ignoreGroup ? "" : fromGroup;
+            String displayFromVersion = ignoreVersion ? "" : fromVersion;
+            String displayToGroup = ignoreGroup ? "" : toGroup;
+            String displayToVersion = ignoreVersion ? "" : toVersion;
+
+            writer.println(String.join(",",
+                    escapeCsv(displayFromGroup),
+                    escapeCsv(fromArtifact),
+                    escapeCsv(displayFromVersion),
+                    escapeCsv(displayToGroup),
+                    escapeCsv(toArtifact),
+                    escapeCsv(displayToVersion),
+                    escapeCsv(scopeVal)));
+            count++;
+        }
+
+        writer.flush();
+    }
+
     private String escapeHtml(String text) {
         if (text == null)
             return "";
@@ -254,5 +338,14 @@ public class ApiController {
                 .replace("<", "&lt;")
                 .replace(">", "&gt;")
                 .replace("\"", "&quot;");
+    }
+
+    private String escapeCsv(String value) {
+        if (value == null)
+            return "";
+        if (value.contains(",") || value.contains("\"") || value.contains("\n")) {
+            return "\"" + value.replace("\"", "\"\"") + "\"";
+        }
+        return value;
     }
 }

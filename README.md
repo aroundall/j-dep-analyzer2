@@ -48,13 +48,14 @@ $env:GOOGLE_APPLICATION_CREDENTIALS = "C:\path\to\service-account.json"
 | Endpoint | Method | Description |
 |----------|--------|-------------|
 | `/` | GET | Dashboard with upload + graph |
-| `/dependencies/list` | GET | Dependencies pair list |
-| `/visualize/{id}` | GET | Detail view for artifact |
-| `/export` | GET | Export page |
+| `/page/dependencies/list` | GET | Dependencies pair list |
+| `/page/visualize/{id}` | GET | Detail view for artifact |
+| `/page/export` | GET | Export page |
 | `/api/upload` | POST | Upload POM files |
 | `/api/artifacts` | GET | List artifacts (JSON) |
 | `/api/graph/data` | GET | Graph data (Cytoscape.js format) |
-| `/export/{table}.csv` | GET | Download table as CSV |
+| `/api/dependencies/export` | GET | Export filtered dependencies CSV |
+| `/api/export/{table}.csv` | GET | Download raw table as CSV |
 
 ## Development
 

@@ -28,7 +28,7 @@ public class ExportController {
         this.edgeRepository = edgeRepository;
     }
 
-    @GetMapping("/export/{table}.csv")
+    @GetMapping("/api/export/{table}.csv")
     public void exportTableCsv(@PathVariable String table, HttpServletResponse response) throws IOException {
         // Validate table name
         if (!table.matches("^[a-zA-Z_][a-zA-Z0-9_]*$")) {
@@ -42,8 +42,8 @@ public class ExportController {
         PrintWriter writer = response.getWriter();
 
         switch (table.toLowerCase()) {
-            case "artifact" -> exportArtifacts(writer);
-            case "dependencyedge" -> exportEdges(writer);
+            case "artifact", "artifacts" -> exportArtifacts(writer);
+            case "dependencyedge", "dependencies", "edges" -> exportEdges(writer);
             default -> {
                 response.sendError(404, "Table not found: " + table);
                 return;

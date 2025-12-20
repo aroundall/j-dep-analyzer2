@@ -45,7 +45,7 @@ public class PageController {
     /**
      * Dependencies list page.
      */
-    @GetMapping("/dependencies/list")
+    @GetMapping("/page/dependencies/list")
     public String dependenciesList(Model model) {
         List<String> scopes = edgeRepository.findDistinctScopes();
         model.addAttribute("title", "Dependencies List - J-Dep Analyzer");
@@ -57,7 +57,7 @@ public class PageController {
     /**
      * Visualization page centered on a specific artifact.
      */
-    @GetMapping("/visualize/{rootId}")
+    @GetMapping("/page/visualize/{rootId}")
     public String visualize(@PathVariable String rootId,
             @RequestParam(required = false) List<String> scope,
             Model model) {
@@ -82,19 +82,19 @@ public class PageController {
     /**
      * Redirect /details to /visualize (for backwards compatibility).
      */
-    @GetMapping("/details/{rootId}")
+    @GetMapping("/page/details/{rootId}")
     public String details(@PathVariable String rootId,
             @RequestParam(required = false) List<String> scope) {
         String scopeParam = scope != null && !scope.isEmpty()
                 ? "?scope=" + String.join("&scope=", scope)
                 : "";
-        return "redirect:/visualize/" + rootId + scopeParam;
+        return "redirect:/page/visualize/" + rootId + scopeParam;
     }
 
     /**
      * Export page.
      */
-    @GetMapping("/export")
+    @GetMapping("/page/export")
     public String exportPage(Model model) {
         model.addAttribute("title", "Export - J-Dep Analyzer");
         model.addAttribute("activePage", "export");
