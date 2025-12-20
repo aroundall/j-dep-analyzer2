@@ -1,0 +1,1 @@
+C:/Users/aroun/workspace/j-dep-analyzer2/.github/copilot-instructions.md
